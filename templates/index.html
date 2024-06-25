@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuration</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Configuration</h1>
+            <form onsubmit="event.preventDefault(); restartAndRedirect();">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary">Restart Application</button>
+            </form>
+            
+            <script>
+                function restartAndRedirect() {
+                    fetch('{{ url_for("restart") }}', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        }
+                    }).then(response => {
+                        setTimeout(() => {
+                            window.location.href = '{{ url_for("index") }}';
+                        }, 3000);  // Adjust the delay as needed
+                    }).catch(error => console.error('Error:', error));
+                }
+            </script>
+            
+            <a href="/logout" class="btn btn-danger">Logout</a>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Update Configuration
+            </div>
+            <div class="card-body">
+                <form action="/update" method="post">
+                    <div class="form-group">
+                        <label for="key">Key</label>
+                        <input type="text" class="form-control" id="key" name="key" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="value">Value</label>
+                        <input type="text" class="form-control" id="value" name="value" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Update Program Mapping
+            </div>
+            <div class="card-body">
+                <form action="/update_program" method="post">
+                    <div class="form-group">
+                        <label for="program">Program</label>
+                        <input type="text" class="form-control" id="program" name="program" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="path">Path</label>
+                        <input type="text" class="form-control" id="path" name="path" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Program Mappings
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for program, path in config.program_mapping.items() %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ program }}: {{ path }}</span>
+                        <span>
+                            <a href="/edit_program/{{ program }}" class="btn btn-warning btn-sm">Edit</a>
+                            <button type="button" class="btn btn-danger btn-sm" data-toggle="modal" data-target="#deleteModal" data-program="{{ program }}">Delete</button>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Current Configuration
+            </div>
+            <div class="card-body">
+                <pre>{{ config | tojson(indent=4) }}</pre>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                Additional Actions
+            </div>
+            <div class="card-body">
+                <a href="/dashboard" class="btn btn-info">View Dashboard</a>
+                <a href="/customize_voice" class="btn btn-info">Customize Voice</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteModalLabel">Delete Program</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this program mapping?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <form id="deleteForm" method="post">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    
+        const csrftoken = getCookie('csrf_token');
+    
+        $.ajaxSetup({
+            beforeSend: function(xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(settings.type) && !this.crossDomain) {
+                    xhr.setRequestHeader("X-CSRFToken", csrftoken);
+                }
+            }
+        });
+    </script>
+    
+
+    <script>
+        $('#deleteModal').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget);
+            var program = button.data('program');
+            var modal = $(this);
+            modal.find('.modal-body').text('Are you sure you want to delete the program mapping for "' + program + '"?');
+            modal.find('#deleteForm').attr('action', '/delete_program/' + program);
+        });
+    </script>
+</body>
+</html>

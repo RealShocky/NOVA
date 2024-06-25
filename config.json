@@ -1,0 +1,14 @@
+{
+  "openai_api_key": "",
+  "voice_id": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\MSSpeech_TTS_en-US_ZiraPro",
+  "program_mapping": {
+    "brave browser": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+    "notepad": "notepad.exe",
+    "calculator": "calc.exe",
+    "microsoft word": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+    "microsoft excel": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+    "microsoft powerpoint": "C:\\Program Files\\Microsoft Office\\root\\Office16\\POWERPNT.EXE",
+    "visual studio code": "C:\\Users\\markv\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+    "chrome browser": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  }
+}
