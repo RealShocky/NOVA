@@ -10,6 +10,17 @@ NOVA is an advanced voice assistant application that leverages speech recognitio
 - Ability to open and close applications.
 - Perform web searches using Brave browser.
 - Personal log creation with speech-to-text.
+- Customizable voice settings.
+- Secure user authentication.
+- Enhanced error handling with custom pages.
+- Rate limiting to prevent abuse.
+- Secure HTTP headers and Content Security Policy (CSP).
+- Integration with Google Calendar for event management.
+
+## Upcoming Enhancements
+
+- Multi-Platform Support: Expanding compatibility to MacOS and Linux.
+- Voice Training and Adaptation: Improved recognition accuracy tailored to your voice.
 
 ## Table of Contents
 
@@ -18,14 +29,15 @@ NOVA is an advanced voice assistant application that leverages speech recognitio
 - [Usage](#usage)
 - [Front-End](#front-end)
 - [Back-End](#back-end)
+- [Google Calendar Integration](#google-calendar-integration)
 - [License](#license)
 
 ## Installation
 
 ### Requirements
 
-- Python 3.7 or higher
-- pip (Python package installer)
+- Python 3.8 or higher
+- Virtual environment (recommended)
 - Brave browser (for web search functionality)
 
 ### Steps
@@ -60,6 +72,11 @@ NOVA is an advanced voice assistant application that leverages speech recognitio
         }
       }
       ```
+
+5. Create the SQLite database:
+    ```sh
+    python -c "from NOVA_frontend import db; db.create_all()"
+    ```
 
 ## Configuration
 
@@ -102,10 +119,12 @@ The front-end is a simple Flask application that serves the HTML pages and provi
 - `reset_request.html`: The password reset request page.
 - `reset_token.html`: The password reset page.
 - `edit_program.html`: The page for editing program mappings.
+- `404.html`: Custom 404 error page.
+- `500.html`: Custom 500 error page.
 
 ## Back-End
 
-The back-end consists of the main `nova.py` script that handles voice recognition, text-to-speech, and command execution.
+The back-end consists of the main `nova.py` script that handles voice recognition, text-to-speech, command execution, and Google Calendar integration.
 
 ### Files
 
@@ -125,6 +144,35 @@ The back-end consists of the main `nova.py` script that handles voice recognitio
 - `save_log_to_file(log_entry)`: Saves a personal log to a file.
 - `start_personal_log()`: Starts a personal log entry.
 - `continuous_listen()`: Continuously listens for voice commands.
+- `set_reminder(event_details)`: Sets a reminder in Google Calendar.
+
+## Google Calendar Integration
+
+NOVA integrates with Google Calendar to manage events and reminders.
+
+### Setup
+
+1. Create a service account in Google Cloud Console and download the JSON key file.
+
+2. Save the JSON key file as `service_account.json` in the project root directory.
+
+3. Update `config.json` to include the path to your service account file:
+    ```json
+    {
+      "openai_api_key": "your_openai_api_key",
+      "voice_id": "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\TTS_MS_EN-US_DAVID_11.0",
+      "program_mapping": {
+        "notepad": "notepad.exe",
+        "brave browser": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "visual studio code": "C:\\path\\to\\your\\vscode.exe"
+      },
+      "google_credentials": "path-to-your-service-account-file.json"
+    }
+    ```
+
+### Functions
+
+- `set_reminder(event_details)`: Sets a reminder in Google Calendar using the specified event details.
 
 ## License
 
