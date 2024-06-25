@@ -6,6 +6,9 @@ from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, EqualTo, ValidationError
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer as Serializer
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_talisman import Talisman
 import json
 import logging
 from logging.handlers import RotatingFileHandler
@@ -13,11 +16,16 @@ import os
 import datetime
 import sys
 from werkzeug.security import generate_password_hash, check_password_hash
-import pyttsx3  # Added import statement
+import pyttsx3
+
+# Ensure the instance directory exists
+os.makedirs('instance', exist_ok=True)
 
 # Initialize the Flask application
 app = Flask(__name__)
 csrf = CSRFProtect(app)
+talisman = Talisman(app)
+
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'default_secret_key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['WTF_CSRF_SECRET_KEY'] = 'a csrf secret key'
@@ -30,6 +38,7 @@ app.config['SECURITY_PASSWORD_SALT'] = 'my_precious_two'
 
 db = SQLAlchemy(app)
 mail = Mail(app)
+limiter = Limiter(get_remote_address, app=app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -167,6 +176,7 @@ If you did not make this request then simply ignore this email and no changes wi
 
 # Routes
 @app.route('/register', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -183,6 +193,7 @@ def register():
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
 def login():
     form = LoginForm()
     if form.validate_on_submit():
@@ -231,6 +242,7 @@ def confirm_email(token):
     return redirect(url_for('login'))
 
 @app.route('/reset', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def reset_request():
     form = RequestResetForm()
     if form.validate_on_submit():
@@ -243,6 +255,7 @@ def reset_request():
     return render_template('reset_request.html', form=form)
 
 @app.route('/reset/<token>', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def reset_token(token):
     user = User.verify_reset_token(token)
     if not user:
@@ -397,6 +410,17 @@ def get_available_voices():
     voices = engine.getProperty('voices')
     available_voices = [{'id': voice.id, 'name': voice.name} for voice in voices]
     return available_voices
+
+# Custom error handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    logging.error(f"404 error: {e}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    logging.error(f"500 error: {e}")
+    return render_template('500.html'), 500
 
 if __name__ == "__main__":
     logging.debug("Application starting")

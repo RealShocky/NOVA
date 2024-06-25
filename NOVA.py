@@ -6,12 +6,14 @@ import os
 import openai
 import pyautogui
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import threading
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG, filename='logs/voiceme.log', filemode='a',
+logging.basicConfig(level=logging.DEBUG, filename='logs/Nova.log', filemode='a',
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load configuration
@@ -24,6 +26,29 @@ engine_lock = threading.Lock()
 
 # Set OpenAI API key
 openai.api_key = config["openai_api_key"]
+
+# Initialize Google Calendar API
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+SERVICE_ACCOUNT_FILE = 'service_account.json'
+
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+calendar_service = build('calendar', 'v3', credentials=credentials)
+
+# Initialize voice profiles
+voice_profiles = {}
+
+class ContextManager:
+    def __init__(self):
+        self.context = {}
+
+    def update_context(self, user_id, context):
+        self.context[user_id] = context
+
+    def get_context(self, user_id):
+        return self.context.get(user_id, {})
+
+context_manager = ContextManager()
 
 def list_voices():
     voices = engine.getProperty('voices')
@@ -70,14 +95,19 @@ def recognize_speech():
         print(f"Could not request results from Google Speech Recognition service: {e}.")
         speak("There was an error with the Google Speech Recognition service.")
         return None
+    except Exception as e:
+        logging.error(f"Unexpected error in recognize_speech: {e}")
+        speak("An unexpected error occurred.")
+        return None
 
-def parse_command(command):
+def parse_command(user_id, command):
     try:
+        context = context_manager.get_context(user_id)
         response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a voice assistant. Respond with the specific action text only."},
-                {"role": "user", "content": f"Command: {command}"}
+                {"role": "user", "content": f"Command: {command}\nContext: {context}"}
             ]
         )
         action = response.choices[0].message['content'].strip()
@@ -86,10 +116,10 @@ def parse_command(command):
     except Exception as e:
         logging.error(f"Error parsing command: {e}")
         print(f"Error parsing command: {e}")
-        speak(f"Error parsing command.")
+        speak("Error parsing command.")
         return None
 
-def execute_action(action):
+def execute_action(user_id, action):
     if action.startswith("open "):
         program = action.replace("open ", "").strip()
         open_program(program)
@@ -102,7 +132,10 @@ def execute_action(action):
         query = action.replace("search ", "").strip()
         search_in_brave(query)
     elif "start personal log" in action:
-        start_personal_log()
+        start_personal_log(user_id)
+    elif "set reminder" in action:
+        reminder_details = action.replace("set reminder ", "").strip()
+        set_reminder(reminder_details)
     elif "stop listening" in action:
         speak("Goodbye!")
         exit()
@@ -237,7 +270,7 @@ def save_log_to_file(log_entry):
         print(f"Could not save personal log: {e}")
         speak(f"Could not save personal log")
 
-def start_personal_log():
+def start_personal_log(user_id):
     try:
         speak("Please dictate your personal log.")
         personal_log = recognize_speech()
@@ -255,6 +288,7 @@ def start_personal_log():
             logging.info(f"Rewritten personal log: {rewritten_log}")
             print(rewritten_log)
             save_log_to_file(rewritten_log)
+            context_manager.update_context(user_id, {"last_log": rewritten_log})
         
         speak("Personal log entry created.")
     except Exception as e:
@@ -262,14 +296,36 @@ def start_personal_log():
         print(f"Could not start personal log: {e}")
         speak(f"Could not start personal log")
 
+def set_reminder(event_details):
+    event = {
+        'summary': event_details,
+        'start': {
+            'dateTime': datetime.now().isoformat(),
+            'timeZone': 'America/Los_Angeles',
+        },
+        'end': {
+            'dateTime': (datetime.now() + timedelta(hours=1)).isoformat(),
+            'timeZone': 'America/Los_Angeles',
+        },
+    }
+
+    try:
+        event = calendar_service.events().insert(calendarId='primary', body=event).execute()
+        logging.info(f"Reminder set: {event_details}")
+        speak("Reminder has been set.")
+    except Exception as e:
+        logging.error(f"Error setting reminder: {e}")
+        speak("Could not set the reminder.")
+
 def continuous_listen():
     while True:
         try:
             command = recognize_speech()
             if command:
-                action = parse_command(command)
+                user_id = "default_user"  # This should be dynamically set for multi-user environments
+                action = parse_command(user_id, command)
                 if action:
-                    execute_action(action)
+                    execute_action(user_id, action)
         except Exception as e:
             logging.error(f"Error in continuous listening loop: {e}")
             print(f"Error in continuous listening loop: {e}")
@@ -288,8 +344,8 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logging.info("VoiceMe program terminated by user.")
-        print("VoiceMe program terminated by user.")
+        logging.info("Nova program terminated by user.")
+        print("Nova program terminated by user.")
         speak("Goodbye!")
 
 if __name__ == "__main__":

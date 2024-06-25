@@ -1,0 +1,12 @@
+flask
+flask_sqlalchemy
+flask_login
+flask_wtf
+pyttsx3
+speech_recognition
+openai
+pyautogui
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
